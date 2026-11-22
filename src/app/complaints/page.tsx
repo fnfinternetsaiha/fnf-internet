@@ -81,7 +81,7 @@ export default function ComplaintsPage() {
   const [custName, setCustName] = React.useState("");
   const [custId, setCustId] = React.useState("");
   const [custPhone, setCustPhone] = React.useState("");
-  const [veng, setVeng] = React.useState(SAIHA_VENGS[0]);
+  const [veng, setVeng] = React.useState<string>(SAIHA_VENGS[0]);
   const [issueType, setIssueType] = React.useState<ComplaintTicket["issue_type"]>("los_red_light");
   const [desc, setDesc] = React.useState("");
 

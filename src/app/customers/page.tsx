@@ -52,7 +52,7 @@ export default function CustomersPage() {
   // New Customer Form State
   const [name, setName] = React.useState("");
   const [phone, setPhone] = React.useState("");
-  const [veng, setVeng] = React.useState(SAIHA_VENGS[0]);
+  const [veng, setVeng] = React.useState<string>(SAIHA_VENGS[0]);
   const [address, setAddress] = React.useState("");
   const [planId, setPlanId] = React.useState(INTERNET_PLANS[0].id);
   const [mac, setMac] = React.useState("");
