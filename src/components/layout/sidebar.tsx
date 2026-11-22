@@ -28,7 +28,7 @@ export function Sidebar() {
   const isSuperAdmin = user?.role === "super_admin";
 
   const navItems = [
-    { label: "Overview", href: "/", icon: LayoutDashboard, visible: true },
+    { label: "Overview", href: "/admin", icon: LayoutDashboard, visible: true },
     {
       label: "Customers",
       href: "/customers",

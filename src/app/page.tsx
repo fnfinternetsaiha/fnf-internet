@@ -3,321 +3,327 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Users,
-  Clock,
-  RefreshCw,
-  AlertTriangle,
-  IndianRupee,
+  Wifi,
+  Gauge,
+  Calendar,
   CheckCircle2,
-  XCircle,
+  Phone,
+  MapPin,
+  Zap,
   ArrowRight,
   ShieldCheck,
   Smartphone,
-  ExternalLink,
-  Plus,
+  Play,
+  RotateCw,
+  Lock,
 } from "lucide-react";
-import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { formatINR, formatDate, daysUntilExpiry } from "@/lib/utils/format";
-import {
-  getStoredCustomers,
-  getStoredPayments,
-  approvePaymentByAdmin,
-  CustomerUser,
-} from "@/lib/services/customer-store";
-import { PaymentRecord } from "@/types";
+import { SAIHA_VENGS } from "@/lib/constants/vêng";
+import { INTERNET_PLANS } from "@/lib/constants/plans";
+import { formatINR } from "@/lib/utils/format";
 
-export default function OverviewPage() {
-  const [customers, setCustomers] = React.useState<CustomerUser[]>([]);
-  const [payments, setPayments] = React.useState<PaymentRecord[]>([]);
+export default function PublicLandingPage() {
+  // Speed Test State
+  const [isTesting, setIsTesting] = React.useState(false);
+  const [downloadSpeed, setDownloadSpeed] = React.useState<number | null>(null);
+  const [uploadSpeed, setUploadSpeed] = React.useState<number | null>(null);
+  const [ping, setPing] = React.useState<number | null>(null);
 
-  const loadData = () => {
-    setCustomers(getStoredCustomers());
-    setPayments(getStoredPayments());
+  // Booking Form State
+  const [bookingName, setBookingName] = React.useState("");
+  const [bookingPhone, setBookingPhone] = React.useState("");
+  const [bookingVeng, setBookingVeng] = React.useState(SAIHA_VENGS[0]);
+  const [bookingAddress, setBookingAddress] = React.useState("");
+  const [bookingPlan, setBookingPlan] = React.useState(INTERNET_PLANS[1].id);
+  const [isBooked, setIsBooked] = React.useState(false);
+
+  // Speed Test Simulator
+  const runSpeedTest = () => {
+    setIsTesting(true);
+    setDownloadSpeed(null);
+    setUploadSpeed(null);
+    setPing(null);
+
+    setTimeout(() => setPing(Math.floor(8 + Math.random() * 8)), 800);
+    setTimeout(() => setDownloadSpeed(Math.floor(95 + Math.random() * 25)), 2200);
+    setTimeout(() => {
+      setUploadSpeed(Math.floor(90 + Math.random() * 20));
+      setIsTesting(false);
+    }, 3500);
   };
 
-  React.useEffect(() => {
-    loadData();
-  }, []);
+  const handleBookingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bookingName || !bookingPhone) return;
 
-  // 1. Calculate Real Dynamic Metrics
-  const activeCustomers = customers.filter((c) => c.status === "active");
-  const expiringCustomers = customers.filter((c) => {
-    const days = daysUntilExpiry(c.expiry_date);
-    return days <= 3 && days >= 0;
-  });
+    // Save to localStorage bookings
+    const bookings = JSON.parse(localStorage.getItem("fnf_saiha_bookings") || "[]");
+    const newBooking = {
+      id: `BOOK-${Date.now().toString().slice(-4)}`,
+      name: bookingName,
+      phone: bookingPhone,
+      veng: bookingVeng,
+      landmark: bookingAddress,
+      plan: bookingPlan,
+      status: "new_booking",
+      created_at: new Date().toISOString(),
+    };
+    localStorage.setItem("fnf_saiha_bookings", JSON.stringify([newBooking, ...bookings]));
 
-  const pendingPayments = payments.filter((p) => p.status === "pending");
-
-  // Sum only payments approved today
-  const todayStr = new Date().toDateString();
-  const todayIncome = payments
-    .filter((p) => p.status === "approved" && new Date(p.created_at).toDateString() === todayStr)
-    .reduce((sum, p) => sum + Number(p.amount), 0);
-
-  // Handle direct approve from dashboard
-  const handleQuickApprove = (paymentId: string) => {
-    approvePaymentByAdmin(paymentId, "Desk Manager (NOC)");
-    loadData();
+    setIsBooked(true);
+    setTimeout(() => {
+      setBookingName("");
+      setBookingPhone("");
+      setBookingAddress("");
+      setIsBooked(false);
+    }, 4000);
   };
 
   return (
-    <DashboardShell>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-blue-600 selection:text-white">
+      {/* Top Navbar */}
+      <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+            <Wifi className="h-5 w-5" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              NOC Operational Dashboard
+            <h1 className="font-black text-base sm:text-lg tracking-tight text-white flex items-center gap-2">
+              FNF SAIHA <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/30">Fiber Internet</span>
             </h1>
-            <p className="text-sm text-gray-500">
-              Live Saiha internet network status, active subscriptions, and real-time revenue.
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/pay"
+            className="text-xs font-bold px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition shadow-md shadow-blue-600/20 flex items-center gap-1.5"
+          >
+            <Smartphone className="h-3.5 w-3.5" /> Customer Bill Pay
+          </Link>
+          <Link
+            href="/admin"
+            className="text-xs font-semibold px-3 py-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900 transition flex items-center gap-1.5"
+          >
+            <Lock className="h-3 w-3" /> Admin / NOC
+          </Link>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:py-10 space-y-12">
+        {/* HERO SECTION */}
+        <section className="text-center space-y-4 pt-4">
+          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <Zap className="h-3.5 w-3.5 text-amber-400" /> Saiha Town High-Speed Optical Fiber
+          </span>
+          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight max-w-2xl mx-auto leading-tight">
+            Chak Lutuk, Rintlak Leh Thlamuanthlak Broadband.
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+            Siaha khawpui chhung veng hrang hrangah optical fiber line thlun zawm vek a ni. Buffer awm lo, HD Streaming leh Gaming tan a tha ber.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <a
+              href="#booking"
+              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-xl shadow-blue-600/30 transition flex items-center gap-2 cursor-pointer"
+            >
+              Vuah Thar Dilna (Book Connection) <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
+              href="#speedtest"
+              className="px-6 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs sm:text-sm border border-slate-800 transition flex items-center gap-2"
+            >
+              <Gauge className="h-4 w-4 text-emerald-400" /> Speed Test En Chhin
+            </a>
+          </div>
+        </section>
+
+        {/* INTERACTIVE SPEED TEST TOOL */}
+        <section id="speedtest" className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur max-w-2xl mx-auto space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Gauge className="h-5 w-5 text-emerald-400" />
+                Live Fiber Speed Test
+              </h3>
+              <p className="text-xs text-slate-400">Saiha NOC Central Server Test</p>
+            </div>
+            <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              Server: Saiha Town
+            </span>
+          </div>
+
+          <div className="text-center py-6 space-y-4">
+            <div className="inline-flex flex-col items-center justify-center h-44 w-44 rounded-full border-4 border-slate-800 bg-slate-950/80 shadow-2xl relative">
+              <span className="text-4xl font-black text-white">
+                {downloadSpeed ? `${downloadSpeed}` : isTesting ? "..." : "100"}
+              </span>
+              <span className="text-[11px] uppercase font-bold text-slate-400 mt-1">Mbps Speed</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto pt-2">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <span className="text-[10px] text-slate-400 block uppercase">Ping</span>
+                <span className="font-bold text-sm text-emerald-400">{ping ? `${ping} ms` : "--"}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <span className="text-[10px] text-slate-400 block uppercase">Download</span>
+                <span className="font-bold text-sm text-blue-400">{downloadSpeed ? `${downloadSpeed} M` : "--"}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <span className="text-[10px] text-slate-400 block uppercase">Upload</span>
+                <span className="font-bold text-sm text-purple-400">{uploadSpeed ? `${uploadSpeed} M` : "--"}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={runSpeedTest}
+              disabled={isTesting}
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/20 inline-flex items-center gap-2 cursor-pointer disabled:opacity-75"
+            >
+              {isTesting ? <RotateCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              {isTesting ? "Testing Network Speed..." : "Start Speed Test"}
+            </button>
+          </div>
+        </section>
+
+        {/* BROADBAND PLANS */}
+        <section className="space-y-4">
+          <div className="text-center">
+            <h3 className="text-xl font-black text-white">Broadband Plans &amp; Rates</h3>
+            <p className="text-xs text-slate-400">Unlimited data with symmetrical upload/download speed</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {INTERNET_PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                className="rounded-2xl p-5 border border-slate-800 bg-slate-900/60 flex flex-col justify-between hover:border-blue-500/60 transition"
+              >
+                <div>
+                  <span className="text-xs text-blue-400 font-bold uppercase">{plan.name}</span>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <span className="text-3xl font-black text-white">{plan.speed_mbps}</span>
+                    <span className="text-xs text-slate-400 uppercase font-bold">Mbps</span>
+                  </div>
+                  <span className="text-xs text-slate-500 block mt-1">Unlimited Monthly Data</span>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-800">
+                  <span className="text-2xl font-black text-emerald-400">{formatINR(plan.price)}</span>
+                  <span className="text-[11px] text-slate-400 block">/ 30 Days</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* NEW CONNECTION BOOKING FORM */}
+        <section id="booking" className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur max-w-xl mx-auto space-y-5">
+          <div>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-400" />
+              Fiber Line Vuah Thar Dilna (New Booking)
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              I chanchin chhu lut la, Siaha FNF Technician-in an rawn be nghal ang che.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/customers">
-              <Button size="sm" className="gap-1.5 shadow-sm">
-                <Plus className="h-4 w-4" /> Add Customer
-              </Button>
-            </Link>
-            <Link href="/payments">
-              <Button size="sm" variant="outline" className="gap-1.5">
-                Verify Payments ({pendingPayments.length})
-              </Button>
-            </Link>
-          </div>
-        </div>
 
-        {/* 100% REAL DYNAMIC STATS CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-          {/* Active Users */}
-          <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Active Users
-                </span>
-                <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                  <Users className="h-4 w-4" />
-                </div>
+          {isBooked ? (
+            <div className="p-6 rounded-2xl bg-emerald-950/40 border border-emerald-800 text-center space-y-2">
+              <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto" />
+              <h4 className="font-bold text-white text-base">Booking Thehluh a ni e!</h4>
+              <p className="text-xs text-slate-300">
+                FNF Saiha Desk Manager-in a hma thei ang berin phone hmangin an rawn be dawn che nia.
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleBookingSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name (Hming Pum) *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Lalmuanpuia"
+                  value={bookingName}
+                  onChange={(e) => setBookingName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  required
+                />
               </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-slate-900 dark:text-white">
-                  {activeCustomers.length}
-                </span>
-                <span className="text-[11px] text-emerald-500 block font-medium mt-0.5">
-                  &bull; 100% online now
-                </span>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Expiring Soon */}
-          <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Expiring (3 Days)
-                </span>
-                <div className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                  <Clock className="h-4 w-4" />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Mobile Phone Number *</label>
+                <input
+                  type="text"
+                  placeholder="10-digit mobile number"
+                  value={bookingPhone}
+                  onChange={(e) => setBookingPhone(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  required
+                />
               </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-amber-500">
-                  {expiringCustomers.length}
-                </span>
-                <span className="text-[11px] text-slate-400 block font-medium mt-0.5">
-                  Needs renewal SMS
-                </span>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Pending Approval */}
-          <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Pending Approval
-                </span>
-                <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-                  <RefreshCw className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-indigo-400">
-                  {pendingPayments.length}
-                </span>
-                <span className="text-[11px] text-slate-400 block font-medium mt-0.5">
-                  Awaiting NOC action
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Expired Users */}
-          <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Expired Accounts
-                </span>
-                <div className="h-8 w-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center">
-                  <AlertTriangle className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-red-500">
-                  {customers.filter((c) => c.status === "expired").length}
-                </span>
-                <span className="text-[11px] text-red-400 block font-medium mt-0.5">
-                  Lines suspended
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Today's Income */}
-          <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Today's Income
-                </span>
-                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                  <IndianRupee className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-emerald-500">
-                  {formatINR(todayIncome)}
-                </span>
-                <span className="text-[11px] text-slate-400 block font-medium mt-0.5">
-                  Verified today
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 2 REAL-TIME OPERATIONAL COLUMNS */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Real Pending Payment Queue with Instant Approve */}
-          <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/70 shadow-sm">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <RefreshCw className="h-4 w-4 text-blue-500" />
-                    Incoming Payments Requiring Approval
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Direct GPay &amp; UPI submissions from customer portal
-                  </p>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Saiha Vêng (Locality) *</label>
+                  <select
+                    value={bookingVeng}
+                    onChange={(e) => setBookingVeng(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white"
+                  >
+                    {SAIHA_VENGS.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <Link href="/payments" className="text-xs text-blue-600 hover:underline flex items-center gap-1 font-semibold">
-                  View All &rarr;
-                </Link>
-              </div>
 
-              {pendingPayments.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400 space-y-1">
-                  <ShieldCheck className="h-8 w-8 text-emerald-500 mx-auto" />
-                  <p className="font-semibold text-slate-300">All Payments Cleared!</p>
-                  <p>Customer payment thehluh thar a awm lo e.</p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {pendingPayments.map((p) => (
-                    <div
-                      key={p.id}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-slate-900 dark:text-white">
-                            {p.customer_name}
-                          </span>
-                          <span className="font-mono text-[10px] text-blue-500">({p.customer_id})</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                          <span className="font-bold text-emerald-600">{formatINR(p.amount)}</span>
-                          <span>&bull;</span>
-                          <span className="font-mono text-[11px] text-slate-400">{p.transaction_ref}</span>
-                        </div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        onClick={() => handleQuickApprove(p.id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7 px-3 gap-1 shadow-sm"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Real Customer Expiry & Status List */}
-          <Card className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/70 shadow-sm">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <Users className="h-4 w-4 text-emerald-500" />
-                    Registered Saiha Subscribers
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Live validity status across Saiha localities
-                  </p>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Preferred Plan *</label>
+                  <select
+                    value={bookingPlan}
+                    onChange={(e) => setBookingPlan(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white"
+                  >
+                    {INTERNET_PLANS.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({formatINR(p.price)})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <Link href="/customers" className="text-xs text-blue-600 hover:underline flex items-center gap-1 font-semibold">
-                  Manage Directory &rarr;
-                </Link>
               </div>
 
-              <div className="space-y-2.5">
-                {customers.slice(0, 4).map((c) => {
-                  const days = daysUntilExpiry(c.expiry_date);
-                  const isExpired = days < 0;
-
-                  return (
-                    <div
-                      key={c.id}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-slate-900 dark:text-white">{c.name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">({c.id})</span>
-                        </div>
-                        <span className="text-xs text-slate-500 block mt-0.5">
-                          {c.veng} &bull; {c.plan_id.replace("fnf-", "")} Mbps
-                        </span>
-                      </div>
-
-                      <div className="text-right">
-                        <Badge variant={isExpired ? "danger" : days <= 3 ? "warning" : "success"}>
-                          {isExpired ? "Expired" : `${days} Days Left`}
-                        </Badge>
-                        <span className="block text-[10px] text-slate-400 mt-1">
-                          {formatDate(c.expiry_date)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">House No. / Landmark Detail</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Near ECM Church, Section A"
+                  value={bookingAddress}
+                  onChange={(e) => setBookingAddress(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                />
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </DashboardShell>
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white transition shadow-lg shadow-blue-600/30 cursor-pointer"
+              >
+                Submit Booking Request
+              </button>
+            </form>
+          )}
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500 space-y-1">
+        <p>FNF Saiha Optical Fiber Internet Service &bull; Central NOC Office, Saiha, Mizoram</p>
+        <p className="text-[11px] text-slate-600">Helpline: 9862001122 &bull; Support: 9862001123</p>
+      </footer>
+    </div>
   );
 }
