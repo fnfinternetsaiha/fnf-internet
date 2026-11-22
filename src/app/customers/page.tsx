@@ -16,6 +16,9 @@ import {
   Check,
   CreditCard,
   History,
+  FileSpreadsheet,
+  Upload,
+  Download,
 } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,10 +47,16 @@ export default function CustomersPage() {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = React.useState(false);
   const [activeLedgerCustomer, setActiveLedgerCustomer] = React.useState<CustomerUser | null>(null);
   const [passwordModalCustomer, setPasswordModalCustomer] = React.useState<CustomerUser | null>(null);
   const [newPassword, setNewPassword] = React.useState("");
   const [passwordSuccess, setPasswordSuccess] = React.useState(false);
+
+  // Bulk Import state
+  const [bulkCsvText, setBulkCsvText] = React.useState("");
+  const [parsedBulk, setParsedBulk] = React.useState<any[]>([]);
+  const [bulkSuccessNotice, setBulkSuccessNotice] = React.useState(false);
 
   // New Customer Form State
   const [name, setName] = React.useState("");
@@ -58,12 +67,103 @@ export default function CustomersPage() {
   const [mac, setMac] = React.useState("");
   const [custPass, setCustPass] = React.useState("password123");
 
-  // Load customers from shared store
   React.useEffect(() => {
     setCustomers(getStoredCustomers());
   }, []);
 
-  // Pay specific month from Ledger
+  // Download Sample CSV/Excel Template
+  const handleDownloadTemplate = () => {
+    const header = "Name,Phone,Veng,Address,PlanSpeedMbps,Password\n";
+    const sample = "Lalbiakvela,9862112233,College Veng,Near Synod Press,50,password123\nK. Zothanga,9436112244,New Saiha East,H/No 23 Bazar road,100,password123\n";
+    const blob = new Blob([header + sample], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "fnf_saiha_customer_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Parse CSV File or Text
+  const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        setBulkCsvText(text);
+        processCsv(text);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const processCsv = (text: string) => {
+    const lines = text.split("\n").filter((l) => l.trim().length > 0);
+    if (lines.length <= 1) return;
+
+    const rows = lines.slice(1).map((line) => {
+      const parts = line.split(",").map((p) => p.trim());
+      return {
+        name: parts[0] || "Unknown",
+        phone: parts[1] || "0000000000",
+        veng: parts[2] || "College Veng",
+        address: parts[3] || "Saiha Town",
+        speed: parseInt(parts[4]) || 50,
+        password: parts[5] || "password123",
+      };
+    });
+    setParsedBulk(rows);
+  };
+
+  // Execute Bulk Save
+  const handleExecuteBulkImport = () => {
+    if (parsedBulk.length === 0) return;
+
+    let highestNum = customers.length;
+    const newItems: CustomerUser[] = parsedBulk.map((item, idx) => {
+      const customerId = generateCustomerId(highestNum + idx);
+      const plan = INTERNET_PLANS.find((p) => p.speed_mbps === item.speed) || INTERNET_PLANS[0];
+      const exp = new Date();
+      exp.setDate(exp.getDate() + 30);
+
+      const defaultRecords = MONTHS.map((m, mIdx) => ({
+        month: m,
+        status: (mIdx === new Date().getMonth() ? "paid" : mIdx < new Date().getMonth() ? "due" : "upcoming") as "paid" | "due" | "upcoming",
+        amount: plan.price,
+        paidDate: mIdx === new Date().getMonth() ? "Today" : undefined,
+      }));
+
+      return {
+        id: customerId,
+        name: item.name,
+        phone: item.phone,
+        password: item.password,
+        veng: item.veng,
+        address_detail: item.address,
+        plan_id: plan.id,
+        monthly_charge: plan.price,
+        status: "active",
+        expiry_date: exp.toISOString().split("T")[0],
+        created_at: new Date().toISOString(),
+        monthlyRecords: defaultRecords,
+      };
+    });
+
+    const updated = [...newItems, ...customers];
+    setCustomers(updated);
+    saveStoredCustomers(updated);
+
+    setBulkSuccessNotice(true);
+    setTimeout(() => {
+      setBulkSuccessNotice(false);
+      setIsBulkModalOpen(false);
+      setParsedBulk([]);
+      setBulkCsvText("");
+    }, 1500);
+  };
+
   const handlePaySpecificMonth = (monthName: string) => {
     if (!activeLedgerCustomer) return;
 
@@ -90,7 +190,6 @@ export default function CustomersPage() {
     setActiveLedgerCustomer(updatedCustomer);
   };
 
-  // Change Password
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordModalCustomer || !newPassword.trim()) return;
@@ -105,7 +204,6 @@ export default function CustomersPage() {
     }, 1200);
   };
 
-  // Add Customer
   const handleCreateCustomer = (e: React.FormEvent) => {
     e.preventDefault();
     const plan = INTERNET_PLANS.find((p) => p.id === planId) || INTERNET_PLANS[0];
@@ -160,7 +258,7 @@ export default function CustomersPage() {
   return (
     <DashboardShell>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header with Bulk Add Button */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
@@ -170,9 +268,18 @@ export default function CustomersPage() {
               Saiha broadband subscribers with Jan - Dec accounts ledger &amp; portal credentials.
             </p>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)} className="gap-2 shadow-sm">
-            <Plus className="h-4 w-4" /> Add New Customer
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsBulkModalOpen(true)}
+              variant="outline"
+              className="gap-1.5 shadow-sm border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+            >
+              <FileSpreadsheet className="h-4 w-4" /> Bulk Import (Excel/CSV)
+            </Button>
+            <Button onClick={() => setIsAddModalOpen(true)} className="gap-2 shadow-sm bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4" /> Add Customer
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -185,7 +292,7 @@ export default function CustomersPage() {
                 placeholder="Search name, phone, or ID (e.g. 003FNF001)..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 focus:outline-none"
               />
             </div>
 
@@ -216,7 +323,7 @@ export default function CustomersPage() {
           </CardContent>
         </Card>
 
-        {/* Customer Table with Jan-Dec Mini Bar & Both Action Buttons */}
+        {/* Customer Table */}
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 dark:bg-zinc-900/60 text-xs uppercase font-semibold text-gray-500 border-b border-gray-200 dark:border-zinc-800">
@@ -241,10 +348,7 @@ export default function CustomersPage() {
                 return (
                   <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-900/40 transition">
                     <td className="px-5 py-4">
-                      <button
-                        onClick={() => setActiveLedgerCustomer(item)}
-                        className="text-left group"
-                      >
+                      <button onClick={() => setActiveLedgerCustomer(item)} className="text-left group cursor-pointer">
                         <span className="font-mono text-xs font-bold text-blue-600 group-hover:underline block">
                           {item.id}
                         </span>
@@ -274,13 +378,12 @@ export default function CustomersPage() {
                       </span>
                     </td>
 
-                    {/* Jan - Dec Mini Heatmap Status */}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1 max-w-[220px]">
                         {item.monthlyRecords?.map((m) => (
                           <div
                             key={m.month}
-                            title={`${m.month} 2026: ${m.status.toUpperCase()}${m.paidDate ? ` (${m.paidDate})` : ""}`}
+                            title={`${m.month} 2026: ${m.status.toUpperCase()}`}
                             className={`h-5 w-4 rounded-sm flex items-center justify-center text-[9px] font-bold ${
                               m.status === "paid"
                                 ? "bg-emerald-500 text-white"
@@ -313,7 +416,6 @@ export default function CustomersPage() {
                       </span>
                     </td>
 
-                    {/* Action Buttons: View Ledger + Change Password */}
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button
@@ -322,7 +424,7 @@ export default function CustomersPage() {
                           onClick={() => setActiveLedgerCustomer(item)}
                           className="gap-1.5 text-xs h-8 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-900 dark:text-blue-400"
                         >
-                          <Receipt className="h-3.5 w-3.5" /> View Ledger
+                          <Receipt className="h-3.5 w-3.5" /> Ledger
                         </Button>
 
                         <Button
@@ -347,7 +449,85 @@ export default function CustomersPage() {
           </table>
         </div>
 
-        {/* 1. Full Jan-Dec Annual Accounts & Payment Ledger Modal */}
+        {/* BULK IMPORT MODAL */}
+        <Modal
+          isOpen={isBulkModalOpen}
+          onClose={() => setIsBulkModalOpen(false)}
+          title="Bulk Import Customers (Excel / CSV)"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60">
+              <div className="text-xs">
+                <span className="font-bold text-blue-900 dark:text-blue-200 block">Excel/CSV Format Template:</span>
+                <span className="text-blue-700 dark:text-blue-400 text-[11px]">Download sample columns (Name, Phone, Veng, Speed, Password)</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={handleDownloadTemplate} className="gap-1 text-xs">
+                <Download className="h-3.5 w-3.5" /> Template
+              </Button>
+            </div>
+
+            <label className="border-2 border-dashed border-slate-300 dark:border-zinc-700 hover:border-blue-500 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50 dark:bg-zinc-900/50 transition">
+              <input type="file" accept=".csv, .txt, .xls, .xlsx" onChange={handleBulkFileChange} className="hidden" />
+              <FileSpreadsheet className="h-8 w-8 text-emerald-500 mb-2" />
+              <span className="text-xs font-semibold text-gray-800 dark:text-zinc-200">
+                Click to Upload Customer Excel / CSV File
+              </span>
+              <span className="text-[11px] text-gray-400 mt-0.5">Supports .csv, .xls exported from spreadsheets</span>
+            </label>
+
+            {parsedBulk.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-gray-900 dark:text-white block">
+                  Preview: {parsedBulk.length} Customer(s) Ready to Import
+                </span>
+                <div className="max-h-40 overflow-y-auto rounded-xl border border-gray-200 dark:border-zinc-800 text-xs">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-100 dark:bg-zinc-800 p-2">
+                      <tr>
+                        <th className="p-2">Name</th>
+                        <th className="p-2">Phone</th>
+                        <th className="p-2">Veng</th>
+                        <th className="p-2">Plan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                      {parsedBulk.map((r, i) => (
+                        <tr key={i}>
+                          <td className="p-2 font-semibold">{r.name}</td>
+                          <td className="p-2 font-mono">{r.phone}</td>
+                          <td className="p-2">{r.veng}</td>
+                          <td className="p-2 font-bold text-blue-600">{r.speed}M</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {bulkSuccessNotice && (
+              <div className="p-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-1.5">
+                <Check className="h-4 w-4" /> Customers bulk-imported and saved successfully!
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+              <Button variant="outline" onClick={() => setIsBulkModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleExecuteBulkImport}
+                disabled={parsedBulk.length === 0}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                Import {parsedBulk.length > 0 ? `(${parsedBulk.length}) Customers` : ""}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Annual Accounts & Payment Ledger Modal */}
         <Modal
           isOpen={!!activeLedgerCustomer}
           onClose={() => setActiveLedgerCustomer(null)}
@@ -356,7 +536,6 @@ export default function CustomersPage() {
         >
           {activeLedgerCustomer && (
             <div className="space-y-6">
-              {/* Financial Profile Header */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-gray-50 dark:bg-zinc-800/60 border border-gray-100 dark:border-zinc-800">
                 <div>
                   <span className="text-[11px] uppercase font-semibold text-gray-400 block">Vêng</span>
@@ -388,7 +567,6 @@ export default function CustomersPage() {
                 </div>
               </div>
 
-              {/* 12-Month Jan-Dec Grid */}
               <div>
                 <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-blue-600" />
@@ -398,7 +576,7 @@ export default function CustomersPage() {
                   {activeLedgerCustomer.monthlyRecords?.map((rec) => (
                     <div
                       key={rec.month}
-                      className={`p-3 rounded-xl border flex flex-col justify-between transition-all ${
+                      className={`p-3 rounded-xl border flex flex-col justify-between ${
                         rec.status === "paid"
                           ? "border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/40 dark:bg-emerald-950/20"
                           : rec.status === "due"
@@ -450,7 +628,7 @@ export default function CustomersPage() {
           )}
         </Modal>
 
-        {/* 2. Change Password Modal */}
+        {/* Change Password Modal */}
         <Modal
           isOpen={!!passwordModalCustomer}
           onClose={() => setPasswordModalCustomer(null)}
@@ -472,7 +650,7 @@ export default function CustomersPage() {
 
             {passwordSuccess && (
               <div className="p-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-1.5">
-                <Check className="h-4 w-4" /> Password thlak fel a ni e! Customer khan a hmang thei nghal ang.
+                <Check className="h-4 w-4" /> Password thlak fel a ni e!
               </div>
             )}
 
@@ -481,13 +659,13 @@ export default function CustomersPage() {
                 Cancel
               </Button>
               <Button type="submit" variant="primary" className="bg-amber-600 hover:bg-amber-700">
-                Update &amp; Save Password
+                Update Password
               </Button>
             </div>
           </form>
         </Modal>
 
-        {/* 3. Add Customer Modal */}
+        {/* Add Customer Modal */}
         <Modal
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
@@ -553,12 +731,6 @@ export default function CustomersPage() {
                 ))}
               </select>
             </div>
-            <Input
-              label="ONU MAC Address (Optional)"
-              placeholder="e.g. 48:57:02:AA:BB:CC"
-              value={mac}
-              onChange={(e) => setMac(e.target.value)}
-            />
 
             <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
               <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>

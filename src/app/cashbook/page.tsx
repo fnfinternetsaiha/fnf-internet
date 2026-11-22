@@ -2,19 +2,18 @@
 
 import * as React from "react";
 import {
-  BookOpen,
+  IndianRupee,
   TrendingUp,
   TrendingDown,
-  Wallet,
   Plus,
-  Search,
-  ArrowDownRight,
-  ArrowUpRight,
   Calendar,
-  Receipt,
+  CloudUpload,
+  Download,
+  CheckCircle2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,347 +21,274 @@ import { Modal } from "@/components/ui/modal";
 import { formatINR, formatDateTime } from "@/lib/utils/format";
 import { CashbookEntry } from "@/types";
 
-const INITIAL_ENTRIES: CashbookEntry[] = [
+const CASHBOOK_KEY = "fnf_saiha_cashbook_v2";
+
+const DEFAULT_ENTRIES: CashbookEntry[] = [
   {
-    id: "CB-501",
+    id: "CB-001",
     type: "income",
-    category: "Customer Subscription",
-    amount: 999,
-    description: "K. Beiratha 100Mbps renewal (003FNF002)",
-    reference_id: "PAY-1080",
-    created_by: "Desk Manager",
-    created_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-  },
-  {
-    id: "CB-502",
-    type: "income",
-    category: "New Installation",
-    amount: 2500,
-    description: "New fiber line & Dual-band ONU installation (College Veng)",
-    created_by: "Desk Manager",
-    created_at: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
-  },
-  {
-    id: "CB-503",
-    type: "expense",
-    category: "Generator Diesel Fuel",
-    amount: 1450,
-    description: "15 Litres diesel for Saiha NOC backup generator",
-    created_by: "Accountant",
-    created_at: new Date(Date.now() - 1000 * 60 * 220).toISOString(),
-  },
-  {
-    id: "CB-504",
-    type: "expense",
-    category: "Technician Field Allowance",
-    amount: 600,
-    description: "Bike petrol allowance for 2 technicians (Siahatla & New Saiha field work)",
-    created_by: "Accountant",
-    created_at: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-  },
-  {
-    id: "CB-505",
-    type: "income",
-    category: "Customer Subscription",
+    category: "Subscription",
     amount: 699,
-    description: "Lalmuanpuia 50Mbps renewal (003FNF001)",
-    reference_id: "PAY-1081",
+    description: "Broadband recharge: Lalmuanpuia (College Veng)",
     created_by: "Desk Manager",
-    created_at: new Date(Date.now() - 1000 * 60 * 420).toISOString(),
+    created_at: new Date().toISOString(),
   },
-];
-
-const INCOME_CATEGORIES = [
-  "Customer Subscription",
-  "New Installation Fee",
-  "ONU / Router Sale",
-  "Fiber Repair / Splicing Charge",
-  "Other Income",
-];
-
-const EXPENSE_CATEGORIES = [
-  "Upstream Bandwidth Bill",
-  "Generator Diesel Fuel",
-  "Technician Field Allowance",
-  "Fiber Cable & Splicing Materials",
-  "Office Rent & Utilities",
-  "Tea & Refreshments",
-  "Other Expense",
+  {
+    id: "CB-002",
+    type: "expense",
+    category: "Fiber Maintenance",
+    amount: 1500,
+    description: "Fiber splicing joints & patch cord purchase (Bazar Veng)",
+    created_by: "Super Admin",
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+  },
 ];
 
 export default function CashbookPage() {
-  const [entries, setEntries] = React.useState<CashbookEntry[]>(INITIAL_ENTRIES);
-  const [search, setSearch] = React.useState("");
-  const [typeFilter, setTypeFilter] = React.useState("all");
-  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [entries, setEntries] = React.useState<CashbookEntry[]>([]);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [backupNotice, setBackupNotice] = React.useState<string | null>(null);
 
-  // New Entry Form state
-  const [entryType, setEntryType] = React.useState<"income" | "expense">("income");
-  const [category, setCategory] = React.useState(INCOME_CATEGORIES[0]);
+  // Form State
+  const [type, setType] = React.useState<"income" | "expense">("expense");
+  const [category, setCategory] = React.useState("Fiber Maintenance");
   const [amount, setAmount] = React.useState("");
-  const [desc, setDesc] = React.useState("");
+  const [description, setDescription] = React.useState("");
 
-  const totalIncome = entries
-    .filter((e) => e.type === "income")
-    .reduce((sum, e) => sum + e.amount, 0);
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(CASHBOOK_KEY);
+      if (saved) {
+        try {
+          setEntries(JSON.parse(saved));
+        } catch {
+          setEntries(DEFAULT_ENTRIES);
+        }
+      } else {
+        localStorage.setItem(CASHBOOK_KEY, JSON.stringify(DEFAULT_ENTRIES));
+        setEntries(DEFAULT_ENTRIES);
+      }
+    }
+  }, []);
 
-  const totalExpense = entries
-    .filter((e) => e.type === "expense")
-    .reduce((sum, e) => sum + e.amount, 0);
-
+  const totalIncome = entries.filter((e) => e.type === "income").reduce((s, e) => s + e.amount, 0);
+  const totalExpense = entries.filter((e) => e.type === "expense").reduce((s, e) => s + e.amount, 0);
   const netBalance = totalIncome - totalExpense;
 
-  const handleCreateEntry = (e: React.FormEvent) => {
+  const handleAddEntry = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || Number(amount) <= 0) return;
+    if (!amount || !description) return;
 
-    const newRecord: CashbookEntry = {
-      id: `CB-${501 + entries.length}`,
-      type: entryType,
+    const newEntry: CashbookEntry = {
+      id: `CB-${Date.now().toString().slice(-4)}`,
+      type,
       category,
-      amount: Number(amount),
-      description: desc,
+      amount: parseFloat(amount),
+      description,
       created_by: "Desk Manager",
       created_at: new Date().toISOString(),
     };
 
-    setEntries([newRecord, ...entries]);
+    const updated = [newEntry, ...entries];
+    setEntries(updated);
+    localStorage.setItem(CASHBOOK_KEY, JSON.stringify(updated));
+
     setAmount("");
-    setDesc("");
-    setIsAddModalOpen(false);
+    setDescription("");
+    setIsModalOpen(false);
   };
 
-  const filtered = entries.filter((e) => {
-    const matchSearch =
-      e.description.toLowerCase().includes(search.toLowerCase()) ||
-      e.category.toLowerCase().includes(search.toLowerCase()) ||
-      e.id.toLowerCase().includes(search.toLowerCase());
+  // Google Drive Monthly Backup Export (.csv/.xlsx format)
+  const handleExportDriveBackup = () => {
+    const month = new Date().toLocaleString("default", { month: "long" });
+    const year = new Date().getFullYear();
 
-    const matchType = typeFilter === "all" || e.type === typeFilter;
-    return matchSearch && matchType;
-  });
+    let csvContent = `FNF SAIHA INTERNET - MONTHLY ACCOUNTING STATEMENT\n`;
+    csvContent += `Month: ${month} ${year}\n`;
+    csvContent += `Total Revenue: ${totalIncome}\nTotal Expenses: ${totalExpense}\nNet Profit: ${netBalance}\n\n`;
+    csvContent += `Date,ID,Type,Category,Amount,Description,Staff\n`;
+
+    entries.forEach((e) => {
+      csvContent += `"${e.created_at.split("T")[0]}","${e.id}","${e.type.toUpperCase()}","${e.category}","${e.amount}","${e.description}","${e.created_by}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `FNF_SAIHA_Accounting_Backup_${month}_${year}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setBackupNotice(`Thlatin Accounting Backup (${month} ${year}) download a ni e! Google Drive folder-ah upload/save nghal theih a ni.`);
+    setTimeout(() => setBackupNotice(null), 6000);
+  };
 
   return (
     <DashboardShell>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Daily Cashbook &amp; Financials
+              Cashbook &amp; Financial Accounting
             </h1>
             <p className="text-sm text-gray-500">
-              Track daily branch cash inflows, expenses, fuel, and upstream costs.
+              Track ISP cash inflow, operational expenses, and Google Drive monthly backups.
             </p>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)} className="gap-2 shadow-sm bg-emerald-600 hover:bg-emerald-700">
-            <Plus className="h-4 w-4" /> Add Cashbook Entry
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleExportDriveBackup}
+              variant="outline"
+              className="gap-1.5 shadow-sm border-blue-500/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50"
+            >
+              <CloudUpload className="h-4 w-4" /> Google Drive Monthly Backup
+            </Button>
+            <Button onClick={() => setIsModalOpen(true)} className="gap-2 shadow-sm bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4" /> Record Entry
+            </Button>
+          </div>
         </div>
 
-        {/* 3 Summary Cards */}
+        {backupNotice && (
+          <div className="p-3.5 rounded-xl bg-blue-100 dark:bg-blue-950/60 border border-blue-300 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-semibold flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+            <span>{backupNotice}</span>
+          </div>
+        )}
+
+        {/* Financial Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase">
-                Total Inflow (Income)
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-emerald-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-600">
-                {formatINR(totalIncome)}
+            <CardContent className="p-5 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold uppercase text-gray-500 block">Total Income (Revenue)</span>
+                <span className="text-2xl font-black text-emerald-600 mt-1 block">{formatINR(totalIncome)}</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Subscriptions &amp; installations</p>
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                <TrendingUp className="h-5 w-5" />
+              </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase">
-                Total Outflow (Expenses)
-              </CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {formatINR(totalExpense)}
+            <CardContent className="p-5 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold uppercase text-gray-500 block">Total Operational Expense</span>
+                <span className="text-2xl font-black text-red-500 mt-1 block">{formatINR(totalExpense)}</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Diesel, fuel, parts, upstream</p>
+              <div className="h-10 w-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center">
+                <TrendingDown className="h-5 w-5" />
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-blue-600">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-semibold text-gray-500 uppercase">
-                Net Cash In Hand
-              </CardTitle>
-              <Wallet className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${netBalance >= 0 ? "text-blue-600" : "text-red-600"}`}>
-                {formatINR(netBalance)}
+          <Card>
+            <CardContent className="p-5 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold uppercase text-gray-500 block">Net NOC Profit Balance</span>
+                <span className="text-2xl font-black text-blue-600 mt-1 block">{formatINR(netBalance)}</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Current branch net balance</p>
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                <IndianRupee className="h-5 w-5" />
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filter bar */}
-        <Card>
-          <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search description, category, or ID..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500">Filter:</span>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-200"
-              >
-                <option value="all">All Transactions</option>
-                <option value="income">Income Only</option>
-                <option value="expense">Expenses Only</option>
-              </select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Transactions Table */}
+        {/* Ledger Table */}
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 dark:bg-zinc-900/60 text-xs uppercase font-semibold text-gray-500 border-b border-gray-200 dark:border-zinc-800">
+            <thead className="bg-gray-50 dark:bg-zinc-900 text-xs uppercase font-semibold text-gray-500 border-b border-gray-200 dark:border-zinc-800">
               <tr>
-                <th className="px-5 py-3.5">Entry ID &amp; Type</th>
-                <th className="px-5 py-3.5">Category</th>
+                <th className="px-5 py-3.5">Date &amp; ID</th>
+                <th className="px-5 py-3.5">Type &amp; Category</th>
                 <th className="px-5 py-3.5">Description</th>
-                <th className="px-5 py-3.5">Date &amp; Recorded By</th>
+                <th className="px-5 py-3.5">Staff</th>
                 <th className="px-5 py-3.5 text-right">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-              {filtered.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-900/40 transition">
+              {entries.map((entry) => (
+                <tr key={entry.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-900/50">
                   <td className="px-5 py-4">
-                    <span className="font-mono text-xs font-bold text-gray-400 block">{item.id}</span>
-                    <div className="mt-1">
-                      {item.type === "income" ? (
-                        <Badge variant="success" className="gap-1">
-                          <ArrowDownRight className="h-3 w-3" /> Income
-                        </Badge>
-                      ) : (
-                        <Badge variant="danger" className="gap-1">
-                          <ArrowUpRight className="h-3 w-3" /> Expense
-                        </Badge>
-                      )}
-                    </div>
+                    <span className="font-mono text-xs font-bold text-gray-400 block">{entry.id}</span>
+                    <span className="text-xs text-gray-600 dark:text-zinc-400">{formatDateTime(entry.created_at)}</span>
                   </td>
-
-                  <td className="px-5 py-4 font-semibold text-gray-800 dark:text-zinc-200">
-                    {item.category}
+                  <td className="px-5 py-4">
+                    <Badge variant={entry.type === "income" ? "success" : "danger"}>
+                      {entry.type.toUpperCase()}
+                    </Badge>
+                    <span className="text-xs text-gray-500 block mt-1">{entry.category}</span>
                   </td>
-
-                  <td className="px-5 py-4 text-gray-600 dark:text-zinc-400 max-w-xs">
-                    {item.description}
+                  <td className="px-5 py-4 text-xs font-medium text-gray-900 dark:text-white max-w-xs">
+                    {entry.description}
                   </td>
-
                   <td className="px-5 py-4 text-xs text-gray-500">
-                    <p>{formatDateTime(item.created_at)}</p>
-                    <p className="text-[11px] text-gray-400 font-medium">By: {item.created_by}</p>
+                    {entry.created_by}
                   </td>
-
-                  <td className="px-5 py-4 text-right">
-                    <span
-                      className={`text-base font-bold ${
-                        item.type === "income" ? "text-emerald-600" : "text-red-600"
-                      }`}
-                    >
-                      {item.type === "income" ? "+" : "-"}
-                      {formatINR(item.amount)}
-                    </span>
+                  <td className={`px-5 py-4 text-right font-bold text-sm ${entry.type === "income" ? "text-emerald-600" : "text-red-500"}`}>
+                    {entry.type === "income" ? "+" : "-"}{formatINR(entry.amount)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {filtered.length === 0 && (
-            <div className="text-center py-10 text-gray-500 text-sm">
-              Cashbook entry engmah hmuh a ni lo.
-            </div>
-          )}
         </div>
 
-        {/* Add Entry Modal */}
+        {/* Record Entry Modal */}
         <Modal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          title="New Cashbook Entry"
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Record Income or Expense Entry"
         >
-          <form onSubmit={handleCreateEntry} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-zinc-400 mb-1.5">
-                Entry Type
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEntryType("income");
-                    setCategory(INCOME_CATEGORIES[0]);
-                  }}
-                  className={`py-2 text-sm font-semibold rounded-lg border transition ${
-                    entryType === "income"
-                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                      : "border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300"
-                  }`}
-                >
-                  + Cash Inflow (Income)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEntryType("expense");
-                    setCategory(EXPENSE_CATEGORIES[0]);
-                  }}
-                  className={`py-2 text-sm font-semibold rounded-lg border transition ${
-                    entryType === "expense"
-                      ? "bg-red-600 text-white border-red-600 shadow-sm"
-                      : "border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300"
-                  }`}
-                >
-                  - Cash Outflow (Expense)
-                </button>
-              </div>
+          <form onSubmit={handleAddEntry} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setType("income")}
+                className={`py-2 text-xs font-bold rounded-xl border transition ${type === "income" ? "bg-emerald-600 text-white border-emerald-600" : "bg-gray-100 dark:bg-zinc-800 text-gray-500"}`}
+              >
+                + Income (Pawisa Lut)
+              </button>
+              <button
+                type="button"
+                onClick={() => setType("expense")}
+                className={`py-2 text-xs font-bold rounded-xl border transition ${type === "expense" ? "bg-red-600 text-white border-red-600" : "bg-gray-100 dark:bg-zinc-800 text-gray-500"}`}
+              >
+                - Expense (Hmanral)
+              </button>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-zinc-400 mb-1.5">
-                Category
-              </label>
+              <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">Category</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3.5 py-2 text-sm"
               >
-                {(entryType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
+                {type === "income" ? (
+                  <>
+                    <option value="Subscription">Monthly Subscription</option>
+                    <option value="New Installation">New Fiber Installation Fee</option>
+                    <option value="Router Sale">ONU / Router Sale</option>
+                    <option value="Other Income">Other Income</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Fiber Maintenance">Fiber Line Repair &amp; Maintenance</option>
+                    <option value="Power/Electricity">Electricity &amp; Generator Fuel</option>
+                    <option value="Bandwidth Upstream">Upstream ISP Bandwidth Bill</option>
+                    <option value="Staff Salary">Staff Allowance / Salary</option>
+                    <option value="Office Expense">Office Tea &amp; Supplies</option>
+                  </>
+                )}
               </select>
             </div>
 
             <Input
-              label="Amount (₹)"
+              label="Amount ()"
               type="number"
               placeholder="e.g. 1500"
               value={amount}
@@ -372,22 +298,18 @@ export default function CashbookPage() {
 
             <Input
               label="Description / Purpose"
-              placeholder="e.g. 15 Litres diesel for generator or Customer subscription"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
+              placeholder="e.g. Purchased 2 rolls drop cable for Siahatla"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               required
             />
 
             <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
-              <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                className={entryType === "income" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}
-              >
-                Save Entry
+              <Button type="submit" variant="primary">
+                Save Cashbook Entry
               </Button>
             </div>
           </form>

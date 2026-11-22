@@ -12,6 +12,9 @@ import {
   Smartphone,
   ShieldCheck,
   Clock,
+  FileCheck2,
+  UploadCloud,
+  FileSpreadsheet,
   AlertTriangle,
 } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -27,12 +30,25 @@ import {
   rejectPaymentByAdmin,
 } from "@/lib/services/customer-store";
 
+interface BankTxn {
+  date: string;
+  desc: string;
+  utr: string;
+  amount: number;
+  matchedPayment?: PaymentRecord;
+}
+
 export default function PaymentsPage() {
   const [payments, setPayments] = React.useState<PaymentRecord[]>([]);
   const [search, setSearch] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState("all");
   const [selectedProof, setSelectedProof] = React.useState<PaymentRecord | null>(null);
   const [actionNotice, setActionNotice] = React.useState<string | null>(null);
+
+  // Bank Reconciliation state
+  const [isReconcileModalOpen, setIsReconcileModalOpen] = React.useState(false);
+  const [bankTxns, setBankTxns] = React.useState<BankTxn[]>([]);
+  const [reconcileReport, setReconcileReport] = React.useState<{ matched: number; pending: number; unmatchedBank: number } | null>(null);
 
   const loadData = () => {
     setPayments(getStoredPayments());
@@ -59,6 +75,73 @@ export default function PaymentsPage() {
     }
   };
 
+  // Bank Statement File Processor & Matching Engine (En-milhna)
+  const handleBankFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = (event.target?.result as string) || "";
+      const lines = text.split("\n").filter((l) => l.trim().length > 0);
+
+      // Parse simple statement format: Date, Description/UTR, Amount
+      const parsed: BankTxn[] = lines.slice(1).map((line) => {
+        const parts = line.split(",").map((p) => p.trim());
+        const utrMatch = (parts[1] || "").match(/(?:UTR|UPI|REF|NO)?[\s:-]*([A-Za-z0-9]{8,18})/i);
+        const utr = utrMatch ? utrMatch[1] : parts[1] || "N/A";
+        return {
+          date: parts[0] || new Date().toISOString().split("T")[0],
+          desc: parts[1] || "UPI CREDIT",
+          utr: utr,
+          amount: parseFloat(parts[2]) || 0,
+        };
+      });
+
+      // Match against system payments
+      let matchedCount = 0;
+      const allPayments = getStoredPayments();
+
+      const matchedList = parsed.map((bank) => {
+        const found = allPayments.find(
+          (p) =>
+            (bank.utr && p.transaction_ref && (bank.utr.includes(p.transaction_ref) || p.transaction_ref.includes(bank.utr))) ||
+            p.amount === bank.amount
+        );
+        if (found) {
+          matchedCount++;
+          return { ...bank, matchedPayment: found };
+        }
+        return bank;
+      });
+
+      setBankTxns(matchedList);
+      setReconcileReport({
+        matched: matchedCount,
+        pending: allPayments.filter((p) => p.status === "pending").length,
+        unmatchedBank: parsed.length - matchedCount,
+      });
+    };
+
+    reader.readAsText(file);
+  };
+
+  // Bulk Approve Matched Payments
+  const handleApproveAllMatched = () => {
+    let count = 0;
+    bankTxns.forEach((txn) => {
+      if (txn.matchedPayment && txn.matchedPayment.status === "pending") {
+        approvePaymentByAdmin(txn.matchedPayment.id, "Auto Bank Reconcile");
+        count++;
+      }
+    });
+
+    loadData();
+    setIsReconcileModalOpen(false);
+    setActionNotice(`Hlawhtling takin Bank Statement atangin payments ${count} auto-verify leh approve a ni e!`);
+    setTimeout(() => setActionNotice(null), 5000);
+  };
+
   const filtered = payments.filter((p) => {
     const matchesSearch =
       p.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -79,14 +162,23 @@ export default function PaymentsPage() {
               Payments &amp; Portal Submissions
             </h1>
             <p className="text-sm text-gray-500">
-              Verify customer UPI submissions and approve validity recharge.
+              Verify customer UPI submissions and reconcile against Bank Statement.
             </p>
           </div>
-          {pendingCount > 0 && (
-            <div className="bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
-              <Clock className="h-4 w-4 animate-spin" /> {pendingCount} Pending Payment(s) Needing Approval
-            </div>
-          )}
+          <div className="flex items-center gap-2.5">
+            <Button
+              onClick={() => setIsReconcileModalOpen(true)}
+              variant="outline"
+              className="gap-1.5 shadow-sm border-blue-500/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50"
+            >
+              <FileCheck2 className="h-4 w-4" /> Bank Statement En-milhna (Reconcile)
+            </Button>
+            {pendingCount > 0 && (
+              <div className="bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                <Clock className="h-4 w-4 animate-spin" /> {pendingCount} Pending Approval
+              </div>
+            )}
+          </div>
         </div>
 
         {actionNotice && (
@@ -125,7 +217,7 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
 
-        {/* Table */}
+        {/* Payments Table */}
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 dark:bg-zinc-900 text-xs uppercase font-semibold text-gray-500 border-b border-gray-200 dark:border-zinc-800">
@@ -205,6 +297,105 @@ export default function PaymentsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* BANK RECONCILIATION MODAL */}
+        <Modal
+          isOpen={isReconcileModalOpen}
+          onClose={() => setIsReconcileModalOpen(false)}
+          title="Bank Statement & Payment Transaction En-milhna (Reconciliation)"
+          className="max-w-3xl"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500">
+              Upload bank statement (CSV/Excel) to auto-verify which customer payments actually credited to your bank.
+            </p>
+
+            <label className="border-2 border-dashed border-slate-300 dark:border-zinc-700 hover:border-blue-500 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50 dark:bg-zinc-900/50 transition">
+              <input type="file" accept=".csv, .txt, .xls, .xlsx" onChange={handleBankFileUpload} className="hidden" />
+              <UploadCloud className="h-8 w-8 text-blue-500 mb-2" />
+              <span className="text-xs font-semibold text-gray-800 dark:text-zinc-200">
+                Upload Bank Statement (CSV / Text / Excel)
+              </span>
+              <span className="text-[11px] text-gray-400 mt-0.5">Format: Date, Narration/UTR, Credit Amount</span>
+            </label>
+
+            {reconcileReport && (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-center">
+                  <span className="text-xs text-emerald-600 font-semibold block">Bank-a Lut Chianga Hmuh</span>
+                  <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{reconcileReport.matched} Matched</span>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-center">
+                  <span className="text-xs text-amber-600 font-semibold block">System Pending Queue</span>
+                  <span className="text-xl font-bold text-amber-700 dark:text-amber-400">{reconcileReport.pending} Pending</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-center">
+                  <span className="text-xs text-slate-500 font-semibold block">Unmatched Bank Entries</span>
+                  <span className="text-xl font-bold text-slate-700 dark:text-slate-300">{reconcileReport.unmatchedBank}</span>
+                </div>
+              </div>
+            )}
+
+            {bankTxns.length > 0 && (
+              <div className="max-h-56 overflow-y-auto rounded-xl border border-gray-200 dark:border-zinc-800 text-xs">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-100 dark:bg-zinc-800 p-2 text-[11px] uppercase">
+                    <tr>
+                      <th className="p-2">Bank Date &amp; UTR</th>
+                      <th className="p-2">Bank Credit</th>
+                      <th className="p-2">Matched Customer</th>
+                      <th className="p-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                    {bankTxns.map((t, idx) => (
+                      <tr key={idx} className={t.matchedPayment ? "bg-emerald-50/30 dark:bg-emerald-950/20" : ""}>
+                        <td className="p-2">
+                          <span className="font-mono text-gray-500 block text-[10px]">{t.date}</span>
+                          <span className="font-mono font-semibold text-blue-600">{t.utr}</span>
+                        </td>
+                        <td className="p-2 font-bold text-emerald-600">{formatINR(t.amount)}</td>
+                        <td className="p-2">
+                          {t.matchedPayment ? (
+                            <div>
+                              <span className="font-bold text-gray-900 dark:text-white block">{t.matchedPayment.customer_name}</span>
+                              <span className="font-mono text-[10px] text-gray-400">({t.matchedPayment.customer_id})</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-[11px]">No portal submission</span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {t.matchedPayment ? (
+                            <Badge variant={t.matchedPayment.status === "approved" ? "success" : "warning"}>
+                              {t.matchedPayment.status === "approved" ? "Already Approved" : "Ready to Approve"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="neutral">Bank Credit Only</Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+              <Button variant="outline" onClick={() => setIsReconcileModalOpen(false)}>
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleApproveAllMatched}
+                disabled={!reconcileReport || reconcileReport.matched === 0}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                Approve &amp; Reconcile All Matched ({reconcileReport?.matched || 0})
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         {/* Proof Preview Modal */}
         <Modal
