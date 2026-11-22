@@ -1,4 +1,13 @@
-﻿import { Customer, PaymentRecord } from "@/types";
+﻿import { createClient } from "@supabase/supabase-js";
+import { Customer, PaymentRecord } from "@/types";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+export const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
 export interface CustomerUser extends Customer {
   password: string;
@@ -24,14 +33,14 @@ const DEFAULT_CUSTOMERS: CustomerUser[] = [
     plan_id: "fnf-50",
     monthly_charge: 699,
     status: "active",
-    expiry_date: "2026-11-25",
+    expiry_date: "2026-12-15",
     created_at: "2024-01-10",
     monthlyRecords: MONTHS.map((m, idx) => ({
       month: m,
-      status: idx <= 9 ? "paid" : idx === 10 ? "due" : "upcoming",
+      status: idx <= 10 ? "paid" : "upcoming",
       amount: 699,
-      paidDate: idx <= 9 ? `15 ${m} 2026` : undefined,
-      txnId: idx <= 9 ? `FNF${Math.floor(100000 + Math.random() * 900000)}` : undefined,
+      paidDate: idx <= 10 ? `15 ${m} 2026` : undefined,
+      txnId: idx <= 10 ? `FNF${Math.floor(100000 + Math.random() * 900000)}` : undefined,
     })),
   },
   {
@@ -76,8 +85,8 @@ const DEFAULT_CUSTOMERS: CustomerUser[] = [
   },
 ];
 
-const CUSTOMERS_KEY = "fnf_saiha_customers_v4";
-const PAYMENTS_KEY = "fnf_saiha_payments_v4";
+const CUSTOMERS_KEY = "fnf_saiha_customers_v5";
+const PAYMENTS_KEY = "fnf_saiha_payments_v5";
 
 export function getStoredCustomers(): CustomerUser[] {
   if (typeof window === "undefined") return DEFAULT_CUSTOMERS;
@@ -147,15 +156,22 @@ export function authenticateCustomer(phoneOrId: string, pass: string): CustomerU
   );
 }
 
-// Admin changes/resets customer password
 export function updateCustomerPassword(customerId: string, newPass: string): boolean {
   const list = getStoredCustomers();
   const updated = list.map((c) => (c.id === customerId ? { ...c, password: newPass } : c));
   saveStoredCustomers(updated);
+
+  // Sync with Supabase asynchronously
+  if (supabase) {
+    supabase
+      .from("customers")
+      .update({ password: newPass })
+      .eq("id", customerId)
+      .then();
+  }
   return true;
 }
 
-// Customer submits payment -> STRICTLY pending
 export function submitCustomerPayment(
   customer: CustomerUser,
   planId: string,
@@ -178,10 +194,15 @@ export function submitCustomerPayment(
 
   const payments = getStoredPayments();
   saveStoredPayments([newPayment, ...payments]);
+
+  // Insert to Supabase payments table
+  if (supabase) {
+    supabase.from("payments").insert(newPayment).then();
+  }
+
   return newPayment;
 }
 
-// Admin approves payment -> Extends validity by 30 days & updates 2026 ledger
 export function approvePaymentByAdmin(paymentId: string, approvedBy: string = "Admin NOC"): boolean {
   const payments = getStoredPayments();
   const payment = payments.find((p) => p.id === paymentId);
@@ -215,12 +236,21 @@ export function approvePaymentByAdmin(paymentId: string, approvedBy: string = "A
     });
 
     saveStoredCustomers([...customers]);
+
+    // Update Supabase in real-time
+    if (supabase) {
+      supabase.from("payments").update({ status: "approved", verified_by: approvedBy }).eq("id", paymentId).then();
+      supabase.from("customers").update({
+        expiry_date: customer.expiry_date,
+        status: "active",
+        monthly_records: customer.monthlyRecords,
+      }).eq("id", customer.id).then();
+    }
   }
 
   return true;
 }
 
-// Admin rejects payment
 export function rejectPaymentByAdmin(paymentId: string, reason: string = "Payment not credited to bank"): boolean {
   const payments = getStoredPayments();
   const payment = payments.find((p) => p.id === paymentId);
@@ -229,5 +259,9 @@ export function rejectPaymentByAdmin(paymentId: string, reason: string = "Paymen
   payment.status = "rejected";
   payment.notes = `Rejected: ${reason}`;
   saveStoredPayments([...payments]);
+
+  if (supabase) {
+    supabase.from("payments").update({ status: "rejected", notes: payment.notes }).eq("id", paymentId).then();
+  }
   return true;
 }
