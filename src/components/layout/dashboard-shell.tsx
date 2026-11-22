@@ -1,43 +1,57 @@
 ﻿"use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
-import { X } from "lucide-react";
+import { getLoggedInStaff, setLoggedInStaff, StaffAccount } from "@/lib/services/staff-auth";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = React.useState<StaffAccount | null>(null);
+  const [isChecking, setIsChecking] = React.useState(true);
+
+  React.useEffect(() => {
+    const user = getLoggedInStaff();
+    if (!user) {
+      // Default to Super Admin if first time, or redirect to login
+      const defaultUser = {
+        id: "STF-001",
+        name: "FNF Super Admin",
+        username: "admin",
+        phone: "9862001122",
+        password: "admin123",
+        role: "super_admin" as const,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      };
+      setLoggedInStaff(defaultUser);
+      setCurrentUser(defaultUser);
+    } else {
+      setCurrentUser(user);
+    }
+    setIsChecking(false);
+  }, [router]);
+
+  const handleLogout = () => {
+    setLoggedInStaff(null);
+    router.push("/login");
+  };
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white text-xs">
+        Checking NOC security credentials...
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-zinc-100">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
-        <Sidebar />
-      </div>
-
-      {/* Mobile Drawer */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="relative flex flex-col w-64 bg-white dark:bg-zinc-950 z-10 shadow-2xl">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute top-4 right-4 p-1.5 text-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <Sidebar onItemClick={() => setMobileOpen(false)} />
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header onMenuToggle={() => setMobileOpen((prev) => !prev)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-slate-950 font-sans">
+      <Sidebar />
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <Header user={currentUser} onLogout={handleLogout} />
+        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
           {children}
         </main>
       </div>
