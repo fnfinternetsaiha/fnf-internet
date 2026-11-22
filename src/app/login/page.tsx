@@ -17,8 +17,8 @@ import { authenticateStaff, setLoggedInStaff } from "@/lib/services/staff-auth";
 
 export default function StaffLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = React.useState("admin");
-  const [password, setPassword] = React.useState("admin123");
+  const [username, setUsername] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
@@ -34,7 +34,7 @@ export default function StaffLoginPage() {
         setLoggedInStaff(user);
         router.push("/");
       } else {
-        setError("Username emaw password a dik lo. Admin i nih loh chuan Desk Manager be rawh.");
+        setError("Username emaw password a dik lo. Admin be rawh.");
         setIsLoading(false);
       }
     }, 600);
@@ -63,8 +63,8 @@ export default function StaffLoginPage() {
         </Link>
       </header>
 
-      {/* Main Login Card */}
-      <main className="flex-1 max-w-md w-full mx-auto p-4 sm:py-12 flex flex-col justify-center">
+      {/* Main Login Card (Clean & Secure - No leaks) */}
+      <main className="flex-1 max-w-md w-full mx-auto p-4 sm:py-16 flex flex-col justify-center">
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur space-y-6">
           <div className="text-center space-y-1.5">
             <div className="h-12 w-12 rounded-2xl bg-blue-600/10 text-blue-500 border border-blue-500/20 flex items-center justify-center mx-auto mb-2">
@@ -72,7 +72,7 @@ export default function StaffLoginPage() {
             </div>
             <h2 className="text-xl font-bold text-white">Staff &amp; NOC Sign In</h2>
             <p className="text-xs text-slate-400">
-              Saiha Internet Operations, Subscriber Accounts &amp; Cashbook Management
+              Enter your registered username and secret password.
             </p>
           </div>
 
@@ -85,10 +85,10 @@ export default function StaffLoginPage() {
                 <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="e.g. admin or 9862001122"
+                  placeholder="Enter username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                   required
                 />
               </div>
@@ -96,7 +96,7 @@ export default function StaffLoginPage() {
 
             <div className="space-y-1.5">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                Staff Password
+                Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" />
@@ -105,7 +105,7 @@ export default function StaffLoginPage() {
                   placeholder="Enter secret password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
                   required
                 />
                 <button
@@ -128,28 +128,18 @@ export default function StaffLoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-sm text-white transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-sm text-white transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
             >
-              {isLoading ? "Signing in..." : "Access NOC Dashboard"}
+              {isLoading ? "Verifying..." : "Sign In to NOC Dashboard"}
               {!isLoading && <ArrowRight className="h-4 w-4" />}
             </button>
           </form>
-
-          {/* Preset Helper */}
-          <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-400 space-y-1.5">
-            <span className="font-semibold text-slate-300 block">Default Staff Credentials:</span>
-            <div className="space-y-0.5">
-              <p>Super Admin: <span className="font-mono text-blue-400">admin</span> &bull; Pass: <span className="font-mono text-emerald-400">admin123</span></p>
-              <p>Desk Manager: <span className="font-mono text-blue-400">manager</span> &bull; Pass: <span className="font-mono text-emerald-400">manager123</span></p>
-              <p>Field Tech: <span className="font-mono text-blue-400">tech</span> &bull; Pass: <span className="font-mono text-emerald-400">tech123</span></p>
-            </div>
-          </div>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
-        FNF Saiha Optical Fiber Broadband &bull; Central NOC Helpline: 9862001122
+        FNF Saiha Optical Fiber Broadband &bull; Central NOC Office, Saiha, Mizoram
       </footer>
     </div>
   );
