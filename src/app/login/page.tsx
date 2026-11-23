@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Wifi,
@@ -16,7 +15,6 @@ import {
 import { authenticateStaff, setLoggedInStaff } from "@/lib/services/staff-auth";
 
 export default function StaffLoginPage() {
-  const router = useRouter();
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -32,12 +30,13 @@ export default function StaffLoginPage() {
       const user = authenticateStaff(username, password);
       if (user) {
         setLoggedInStaff(user);
-        router.push("/");
+        // DIRECT REDIRECT TO /admin NOC DASHBOARD!
+        window.location.href = "/admin";
       } else {
         setError("Username emaw password a dik lo. Admin be rawh.");
         setIsLoading(false);
       }
-    }, 600);
+    }, 500);
   };
 
   return (
@@ -50,20 +49,20 @@ export default function StaffLoginPage() {
           </div>
           <div>
             <h1 className="font-extrabold text-base text-white flex items-center gap-2">
-              FNF SAIHA <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full">NOC Admin Portal</span>
+              FNF SAIHA <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full">NOC Portal</span>
             </h1>
           </div>
         </div>
 
         <Link
-          href="/pay"
-          className="text-xs text-blue-400 hover:text-white border border-blue-900/60 px-3 py-1.5 rounded-lg transition"
+          href="/"
+          className="text-xs text-slate-400 hover:text-white border border-slate-800 px-3 py-1.5 rounded-lg transition"
         >
-          Customer Self-Care &rarr;
+          &larr; Back to Website
         </Link>
       </header>
 
-      {/* Main Login Card (Clean & Secure - No leaks) */}
+      {/* Main Login Card */}
       <main className="flex-1 max-w-md w-full mx-auto p-4 sm:py-16 flex flex-col justify-center">
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur space-y-6">
           <div className="text-center space-y-1.5">
@@ -72,14 +71,14 @@ export default function StaffLoginPage() {
             </div>
             <h2 className="text-xl font-bold text-white">Staff &amp; NOC Sign In</h2>
             <p className="text-xs text-slate-400">
-              Enter your registered username and secret password.
+              Sign in with your NOC credentials to access the operational dashboard.
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
-                Username or Phone Number
+                Username or Phone
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" />
@@ -102,7 +101,7 @@ export default function StaffLoginPage() {
                 <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" />
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter secret password"
+                  placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
@@ -130,7 +129,7 @@ export default function StaffLoginPage() {
               disabled={isLoading}
               className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-sm text-white transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
             >
-              {isLoading ? "Verifying..." : "Sign In to NOC Dashboard"}
+              {isLoading ? "Signing in..." : "Sign In & Open Dashboard"}
               {!isLoading && <ArrowRight className="h-4 w-4" />}
             </button>
           </form>

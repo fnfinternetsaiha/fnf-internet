@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Smartphone,
   ExternalLink,
-  Lock,
 } from "lucide-react";
 import { SAIHA_VENGS } from "@/lib/constants/vêng";
 import { INTERNET_PLANS } from "@/lib/constants/plans";
@@ -57,7 +56,7 @@ export default function PublicLandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-blue-600 selection:text-white">
-      {/* Top Navbar */}
+      {/* Top Navbar - Clean Public Header (NO Admin/NOC button) */}
       <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
@@ -70,18 +69,12 @@ export default function PublicLandingPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div>
           <Link
             href="/pay"
-            className="text-xs font-bold px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition shadow-md shadow-blue-600/20 flex items-center gap-1.5"
+            className="text-xs font-bold px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition shadow-md shadow-blue-600/20 flex items-center gap-1.5"
           >
             <Smartphone className="h-3.5 w-3.5" /> Customer Bill Pay
-          </Link>
-          <Link
-            href="/admin"
-            className="text-xs font-semibold px-3 py-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900 transition flex items-center gap-1.5"
-          >
-            <Lock className="h-3 w-3" /> Admin / NOC
           </Link>
         </div>
       </header>
@@ -116,7 +109,7 @@ export default function PublicLandingPage() {
           </div>
         </section>
 
-        {/* OOKLA POWERED SPEED TEST SECTION */}
+        {/* OOKLA SPEED TEST SECTION */}
         <section id="speedtest" className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur max-w-3xl mx-auto space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div>
@@ -141,7 +134,6 @@ export default function PublicLandingPage() {
             </div>
           </div>
 
-          {/* Embedded Real Speed Test Widget */}
           <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 flex justify-center items-center min-h-[500px]">
             <iframe
               src="https://openspeedtest.com/Get-widget.php"
