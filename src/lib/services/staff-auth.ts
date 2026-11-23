@@ -106,7 +106,6 @@ export function getStoredStaff(): StaffAccount[] {
   }
   try {
     const list: StaffAccount[] = JSON.parse(data);
-    // Backfill permissions if missing
     return list.map((s) => ({
       ...s,
       permissions: s.permissions || DEFAULT_ROLE_PERMISSIONS[s.role] || ALL_PERMISSIONS,
@@ -122,7 +121,8 @@ export function saveStoredStaff(list: StaffAccount[]): void {
   }
 }
 
-export function authenticateStaff(usernameOrPhone: string, pass: string): StaffAccount | null {
+// 1. Specific Super Admin Authenticator
+export function authenticateAdmin(usernameOrPhone: string, pass: string): { success: boolean; user?: StaffAccount; error?: string } {
   const staff = getStoredStaff();
   const cleanInput = usernameOrPhone.trim().toLowerCase();
   const cleanPass = pass.trim();
@@ -134,11 +134,37 @@ export function authenticateStaff(usernameOrPhone: string, pass: string): StaffA
       s.is_active
   );
 
-  if (user) {
-    setLoggedInStaff(user);
-    return user;
+  if (!user) {
+    return { success: false, error: "Username emaw password a dik lo." };
   }
-  return null;
+
+  if (user.role !== "super_admin") {
+    return { success: false, error: "Access Denied: Super Admin account chauh heta luh theih a ni. Staff Login hmang rawh." };
+  }
+
+  setLoggedInStaff(user);
+  return { success: true, user };
+}
+
+// 2. Specific Staff Authenticator
+export function authenticateStaff(usernameOrPhone: string, pass: string): { success: boolean; user?: StaffAccount; error?: string } {
+  const staff = getStoredStaff();
+  const cleanInput = usernameOrPhone.trim().toLowerCase();
+  const cleanPass = pass.trim();
+
+  const user = staff.find(
+    (s) =>
+      (s.username.toLowerCase() === cleanInput || s.phone === cleanInput) &&
+      s.password === cleanPass &&
+      s.is_active
+  );
+
+  if (!user) {
+    return { success: false, error: "Staff username emaw password a dik lo. Admin be rawh." };
+  }
+
+  setLoggedInStaff(user);
+  return { success: true, user };
 }
 
 export function getLoggedInStaff(): StaffAccount | null {
