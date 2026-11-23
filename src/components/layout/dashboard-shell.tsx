@@ -1,39 +1,40 @@
 ﻿"use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
-import { getLoggedInStaff, setLoggedInStaff, StaffAccount } from "@/lib/services/staff-auth";
+import {
+  getLoggedInStaff,
+  logoutStaff,
+  StaffAccount,
+} from "@/lib/services/staff-auth";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const [currentUser, setCurrentUser] = React.useState<StaffAccount | null>(null);
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
 
-  React.useEffect(() => {
-    // STRICT SECURITY CHECK
-    const user = getLoggedInStaff();
-    if (!user) {
-      // Login a awm loh chuan /login ah theh phei nghal rawh
-      window.location.href = "/login";
-    } else {
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-    }
-  }, []);
-
   const handleLogout = () => {
-    setLoggedInStaff(null);
-    window.location.href = "/login";
+    logoutStaff();
+    window.location.href = "/admin/login";
   };
 
-  // Login a la nih loh chuan engmah lantir suh
+  React.useEffect(() => {
+    const user = getLoggedInStaff();
+    if (!user) {
+      // Not logged in or tab was closed -> Redirect to admin login!
+      window.location.href = "/admin/login";
+      return;
+    }
+
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+  }, []);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white text-xs gap-3">
         <div className="h-7 w-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <span className="font-semibold text-slate-300">NOC Security: Verifying credentials...</span>
+        <span className="font-semibold text-slate-300">Checking NOC session...</span>
       </div>
     );
   }

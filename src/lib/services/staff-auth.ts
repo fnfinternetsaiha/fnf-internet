@@ -93,9 +93,9 @@ const DEFAULT_STAFF: StaffAccount[] = [
   },
 ];
 
-const STAFF_KEY = "fnf_saiha_staff_accounts_v4";
-const SESSION_KEY = "fnf_saiha_staff_session_v4";
-const TIMEOUT_MINUTES = 15;
+const STAFF_KEY = "fnf_saiha_staff_accounts_v5";
+// SESSION STORAGE KEY: Auto-wiped immediately when browser tab is closed!
+const SESSION_KEY = "fnf_saiha_session_tab_v5";
 
 export function getStoredStaff(): StaffAccount[] {
   if (typeof window === "undefined") return DEFAULT_STAFF;
@@ -121,7 +121,6 @@ export function saveStoredStaff(list: StaffAccount[]): void {
   }
 }
 
-// 1. Specific Super Admin Authenticator
 export function authenticateAdmin(usernameOrPhone: string, pass: string): { success: boolean; user?: StaffAccount; error?: string } {
   const staff = getStoredStaff();
   const cleanInput = usernameOrPhone.trim().toLowerCase();
@@ -139,14 +138,13 @@ export function authenticateAdmin(usernameOrPhone: string, pass: string): { succ
   }
 
   if (user.role !== "super_admin") {
-    return { success: false, error: "Access Denied: Super Admin account chauh heta luh theih a ni. Staff Login hmang rawh." };
+    return { success: false, error: "Access Denied: Super Admin account chauh luh theihna a ni." };
   }
 
   setLoggedInStaff(user);
   return { success: true, user };
 }
 
-// 2. Specific Staff Authenticator
 export function authenticateStaff(usernameOrPhone: string, pass: string): { success: boolean; user?: StaffAccount; error?: string } {
   const staff = getStoredStaff();
   const cleanInput = usernameOrPhone.trim().toLowerCase();
@@ -160,30 +158,21 @@ export function authenticateStaff(usernameOrPhone: string, pass: string): { succ
   );
 
   if (!user) {
-    return { success: false, error: "Staff username emaw password a dik lo. Admin be rawh." };
+    return { success: false, error: "Staff username emaw password a dik lo." };
   }
 
   setLoggedInStaff(user);
   return { success: true, user };
 }
 
+// Session is in sessionStorage: Auto destroyed when tab is closed!
 export function getLoggedInStaff(): StaffAccount | null {
   if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(SESSION_KEY);
+  const raw = sessionStorage.getItem(SESSION_KEY);
   if (!raw) return null;
 
   try {
     const session: StaffSession = JSON.parse(raw);
-    const now = Date.now();
-    const elapsedMinutes = (now - session.lastActive) / (1000 * 60);
-
-    if (elapsedMinutes > TIMEOUT_MINUTES) {
-      logoutStaff();
-      return null;
-    }
-
-    session.lastActive = now;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     return session.user;
   } catch {
     logoutStaff();
@@ -198,40 +187,24 @@ export function setLoggedInStaff(user: StaffAccount | null): void {
       user,
       lastActive: Date.now(),
     };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   } else {
     logoutStaff();
   }
 }
 
-export function touchSession(): void {
-  if (typeof window === "undefined") return;
-  const raw = localStorage.getItem(SESSION_KEY);
-  if (raw) {
-    try {
-      const session: StaffSession = JSON.parse(raw);
-      session.lastActive = Date.now();
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    } catch {}
-  }
-}
-
 export function logoutStaff(): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem("fnf_saiha_staff_session_v3");
+  sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem("fnf_saiha_logged_in_staff");
+  localStorage.removeItem("fnf_saiha_staff_session_v4");
+  localStorage.removeItem("fnf_saiha_staff_session_v3");
 }
 
 export function updateStaffPassword(staffId: string, newPass: string): boolean {
   const staff = getStoredStaff();
   const updated = staff.map((s) => (s.id === staffId ? { ...s, password: newPass.trim() } : s));
   saveStoredStaff(updated);
-
-  const current = getLoggedInStaff();
-  if (current && current.id === staffId) {
-    setLoggedInStaff({ ...current, password: newPass.trim() });
-  }
   return true;
 }
 
@@ -239,11 +212,6 @@ export function updateStaffPermissions(staffId: string, perms: StaffPermissions)
   const staff = getStoredStaff();
   const updated = staff.map((s) => (s.id === staffId ? { ...s, permissions: perms } : s));
   saveStoredStaff(updated);
-
-  const current = getLoggedInStaff();
-  if (current && current.id === staffId) {
-    setLoggedInStaff({ ...current, permissions: perms });
-  }
   return true;
 }
 

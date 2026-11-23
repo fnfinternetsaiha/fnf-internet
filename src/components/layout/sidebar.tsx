@@ -24,8 +24,9 @@ export function Sidebar() {
     setUser(getLoggedInStaff());
   }, []);
 
+  // Super Admin always sees all 7 items; Staff sees permitted items
+  const isSuperAdmin = !user || user.role === "super_admin";
   const perms = user?.permissions;
-  const isSuperAdmin = user?.role === "super_admin";
 
   const navItems = [
     { label: "Overview", href: "/admin", icon: LayoutDashboard, visible: true },
@@ -33,45 +34,45 @@ export function Sidebar() {
       label: "Customers",
       href: "/customers",
       icon: Users,
-      visible: isSuperAdmin || perms?.can_manage_customers,
+      visible: isSuperAdmin || perms?.can_manage_customers !== false,
     },
     {
       label: "Payments",
       href: "/payments",
       icon: CreditCard,
-      visible: isSuperAdmin || perms?.can_approve_payments,
+      visible: isSuperAdmin || perms?.can_approve_payments !== false,
     },
     {
       label: "Recharge Queue",
       href: "/recharge-queue",
       icon: RefreshCw,
-      visible: isSuperAdmin || perms?.can_manage_recharge,
+      visible: isSuperAdmin || perms?.can_manage_recharge !== false,
     },
     {
       label: "Complaints / LOS",
       href: "/complaints",
       icon: AlertTriangle,
-      visible: isSuperAdmin || perms?.can_track_complaints,
+      visible: isSuperAdmin || perms?.can_track_complaints !== false,
     },
     {
       label: "Cashbook",
       href: "/cashbook",
       icon: BookOpen,
-      visible: isSuperAdmin || perms?.can_view_finance,
+      visible: isSuperAdmin || perms?.can_view_finance !== false,
     },
     {
       label: "Staff & Roles",
       href: "/staff",
       icon: UserCog,
-      visible: isSuperAdmin || perms?.can_manage_staff,
+      visible: isSuperAdmin || perms?.can_manage_staff !== false,
     },
   ];
 
   return (
-    <aside className="w-64 border-r border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between hidden md:flex">
+    <aside className="w-64 border-r border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between hidden md:flex flex-shrink-0">
       <div>
         <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-200 dark:border-zinc-800">
-          <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
+          <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-500/20">
             <Wifi className="h-4 w-4" />
           </div>
           <div>
@@ -96,13 +97,13 @@ export function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all",
+                    "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all",
                     isActive
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
                       : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-900 hover:text-gray-900 dark:hover:text-white"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4 flex-shrink-0" />
                   <span>{item.label}</span>
                 </Link>
               );
