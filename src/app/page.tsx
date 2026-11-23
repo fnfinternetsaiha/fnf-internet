@@ -13,8 +13,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Smartphone,
-  Play,
-  RotateCw,
+  ExternalLink,
   Lock,
 } from "lucide-react";
 import { SAIHA_VENGS } from "@/lib/constants/vêng";
@@ -22,12 +21,6 @@ import { INTERNET_PLANS } from "@/lib/constants/plans";
 import { formatINR } from "@/lib/utils/format";
 
 export default function PublicLandingPage() {
-  // Speed Test State
-  const [isTesting, setIsTesting] = React.useState(false);
-  const [downloadSpeed, setDownloadSpeed] = React.useState<number | null>(null);
-  const [uploadSpeed, setUploadSpeed] = React.useState<number | null>(null);
-  const [ping, setPing] = React.useState<number | null>(null);
-
   // Booking Form State
   const [bookingName, setBookingName] = React.useState("");
   const [bookingPhone, setBookingPhone] = React.useState("");
@@ -36,26 +29,10 @@ export default function PublicLandingPage() {
   const [bookingPlan, setBookingPlan] = React.useState(INTERNET_PLANS[1].id);
   const [isBooked, setIsBooked] = React.useState(false);
 
-  // Speed Test Simulator
-  const runSpeedTest = () => {
-    setIsTesting(true);
-    setDownloadSpeed(null);
-    setUploadSpeed(null);
-    setPing(null);
-
-    setTimeout(() => setPing(Math.floor(8 + Math.random() * 8)), 800);
-    setTimeout(() => setDownloadSpeed(Math.floor(95 + Math.random() * 25)), 2200);
-    setTimeout(() => {
-      setUploadSpeed(Math.floor(90 + Math.random() * 20));
-      setIsTesting(false);
-    }, 3500);
-  };
-
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookingName || !bookingPhone) return;
 
-    // Save to localStorage bookings
     const bookings = JSON.parse(localStorage.getItem("fnf_saiha_bookings") || "[]");
     const newBooking = {
       id: `BOOK-${Date.now().toString().slice(-4)}`,
@@ -134,58 +111,49 @@ export default function PublicLandingPage() {
               href="#speedtest"
               className="px-6 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs sm:text-sm border border-slate-800 transition flex items-center gap-2"
             >
-              <Gauge className="h-4 w-4 text-emerald-400" /> Speed Test En Chhin
+              <Gauge className="h-4 w-4 text-emerald-400" /> Ookla Speed Test
             </a>
           </div>
         </section>
 
-        {/* INTERACTIVE SPEED TEST TOOL */}
-        <section id="speedtest" className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur max-w-2xl mx-auto space-y-6">
+        {/* OOKLA POWERED SPEED TEST SECTION */}
+        <section id="speedtest" className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur max-w-3xl mx-auto space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <Gauge className="h-5 w-5 text-emerald-400" />
-                Live Fiber Speed Test
+                Live Fiber Speedtest
               </h3>
-              <p className="text-xs text-slate-400">Saiha NOC Central Server Test</p>
+              <p className="text-xs text-slate-400">Test your real-time latency, download &amp; upload speed</p>
             </div>
-            <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              Server: Saiha Town
-            </span>
-          </div>
-
-          <div className="text-center py-6 space-y-4">
-            <div className="inline-flex flex-col items-center justify-center h-44 w-44 rounded-full border-4 border-slate-800 bg-slate-950/80 shadow-2xl relative">
-              <span className="text-4xl font-black text-white">
-                {downloadSpeed ? `${downloadSpeed}` : isTesting ? "..." : "100"}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                Powered by Ookla Engine
               </span>
-              <span className="text-[11px] uppercase font-bold text-slate-400 mt-1">Mbps Speed</span>
+              <a
+                href="https://www.speedtest.net"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-blue-400 hover:underline flex items-center gap-1"
+              >
+                Speedtest.net <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
-
-            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto pt-2">
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[10px] text-slate-400 block uppercase">Ping</span>
-                <span className="font-bold text-sm text-emerald-400">{ping ? `${ping} ms` : "--"}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[10px] text-slate-400 block uppercase">Download</span>
-                <span className="font-bold text-sm text-blue-400">{downloadSpeed ? `${downloadSpeed} M` : "--"}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[10px] text-slate-400 block uppercase">Upload</span>
-                <span className="font-bold text-sm text-purple-400">{uploadSpeed ? `${uploadSpeed} M` : "--"}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={runSpeedTest}
-              disabled={isTesting}
-              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/20 inline-flex items-center gap-2 cursor-pointer disabled:opacity-75"
-            >
-              {isTesting ? <RotateCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              {isTesting ? "Testing Network Speed..." : "Start Speed Test"}
-            </button>
           </div>
+
+          {/* Embedded Real Speed Test Widget */}
+          <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 flex justify-center items-center min-h-[500px]">
+            <iframe
+              src="https://openspeedtest.com/Get-widget.php"
+              title="FNF Saiha Ookla Speedtest"
+              className="w-full h-[520px] border-0 rounded-2xl"
+              allow="fullscreen"
+            />
+          </div>
+
+          <p className="text-[11px] text-slate-500 text-center">
+            * Speed test dik tak teh nan router bul hnaiah emaw LAN Cable hmangin test a tha ber e.
+          </p>
         </section>
 
         {/* BROADBAND PLANS */}
